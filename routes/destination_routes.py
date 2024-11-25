@@ -1,7 +1,6 @@
 from flask import Blueprint, request, jsonify
 from services.destination_services import add_destination_service,get_all_destinations,get_destination_by_id_service, update_destination_service, delete_destination_service
-from services.user_services import get_user_by_email
-from routes.auth_routes import validate_session
+from services.user_services import get_user_by_email, validate_token
 from flasgger import swag_from
 
 destination_bp = Blueprint('destinations', __name__)
@@ -82,7 +81,7 @@ def add_destination():
     if not token:
         return jsonify({"message": "Authorization token is required"}), 401
 
-    user_email = validate_session(token)
+    user_email = validate_token(token)
     if not user_email:
         return jsonify({"message": "Invalid or expired token"}), 401
 

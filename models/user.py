@@ -15,11 +15,12 @@ class User:
 
     # This method generates a new token for the user
     def generate_token(self):
-        self.token = str(uuid.uuid4())  # Generate a unique token for the user
+        self.token = str(uuid.uuid4())  
         return self.token
     
+    
     @staticmethod
-    def preload_users(users):
+    def preload_users(users, active_sessions):
         """Add some predefined users for testing purposes."""
         admin = User(
             name="Admin User",
@@ -28,7 +29,8 @@ class User:
             role="Admin"
         )
         admin.token = "admin-token"
-    
+        active_sessions[admin.email] = admin.token  
+     
         user1 = User(
             name="John Doe",
             email="john.doe@example.com",
@@ -36,10 +38,11 @@ class User:
             role="User"
         )
         user1.token = "user1-token"
-    
+        active_sessions[user1.email] = user1.token 
+     
         users[admin.email] = admin
         users[user1.email] = user1
-    
-        print("Predefined users loaded successfully.")  # Use print for debugging, not jsonify.
-    
+     
+        print("Predefined users loaded successfullyx.")  
+
         

@@ -8,10 +8,17 @@ active_sessions = {}
 
 def validate_token(token):
     """Validate the provided token and return the user associated with it, if valid."""
-    for email, user_token in active_sessions.items():
-        if user_token == token:
-            return users[email]  # return the user object associated with the token
+    
+    # Check if the token exists in active_sessions
+    if token in active_sessions:
+        user_info = active_sessions[token]  # Get the user info (email, role)
+        email = user_info["email"]  # Get the email from the stored data
+        
+        # Return the user object based on the email
+        return users.get(email)  # Assuming users is a dictionary where email is the key
+    
     return None  # Return None if no valid user is found
+
 
 
 def register_user(data):
@@ -54,25 +61,20 @@ def login_user(email, password):
 
     # Generate a new token and store it in active sessions
     token = str(uuid.uuid4())
-    user.token = token
-    active_sessions[email] = token  # Save token to active_sessions
+    # Store only the token in active_sessions (the key is token, value is user data or ID)
+    active_sessions[token] = {"email": user.email, "role": user.role}  # Store user details if needed
 
-    return {"message": "Login successful", "auth_token": token, "role": user.role}, 200
+    return {"message": "Login successful", "auth_token": f"Bearer {token}", "role": user.role}, 200
+
 
 # logout service
 def logout_user(token):
-    """Logout the user by invalidating their auth token."""
-    # Find the user associated with the token
-    user = validate_token(token)
+    for email, stored_token in active_sessions.items():
+        if stored_token == token:
+            del active_sessions[email]  # Invalidate the token
+            return {"message": "Logout successful"}, 200
+    return {"message": "Unauthorized"}, 401
 
-    if not user:
-        return {"message": "Invalid or expired token"}, 401
-
-    # Invalidate the token
-    user.token = None  # Set the user's token to None
-    active_sessions.pop(user.email, None)  # Remove the token from active sessions
-
-    return {"message": "Logout successful"}, 200
 
 # get all user service. Only applicable for admin
 def get_all_users_service(token):
@@ -93,7 +95,7 @@ def get_all_users_service(token):
         {"name": user.name, "email": user.email, "role": user.role}
         for user in users.values()
     ]
-    return user_list, 200
+    return {"users": user_list}, 200
 
 # services/user_services.py
 

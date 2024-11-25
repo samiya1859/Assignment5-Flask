@@ -1,61 +1,61 @@
 from flask import Blueprint, request, jsonify
 from services.user_services import register_user, login_user, logout_user, get_all_users_service, delete_user_service
 from flasgger import Swagger, swag_from
+import uuid
+from services.user_services import users, active_sessions, validate_token
+from models.user import User
 
 
 auth_bp = Blueprint('auth', __name__)
 
-def validate_session(token):
-    # Example function to validate token (you can adjust as per your implementation)
-    if not token:
-        return None
-    
-    # Remove "Bearer " prefix if it exists
-    if token.startswith("Bearer "):
-        token = token[7:]
 
-    # For example, compare the token with a stored token (this could be a session store or database check)
-    if token == "valid_token_example":  # Replace with your actual token check
-        return "user_email@example.com"  # Return user email if token is valid
-    return None
+
+@auth_bp.errorhandler(400)
+def bad_request_error(error):
+    return jsonify({"message": str(error.description)}), 400
+
 
 @auth_bp.route('/register', methods=['POST'])
+@swag_from({
+    "tags": ["Authentication"],
+    "summary": "Register a new user",
+    "description": "Allows new users to register by providing their name, email, password, and an optional role.",
+    "parameters": [
+        {
+            "name": "body",
+            "in": "body",
+            "required": True,
+            "schema": {
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string"},
+                    "email": {"type": "string"},
+                    "password": {"type": "string"},
+                    "role": {"type": "string", "default": "User"},
+                },
+                "required": ["name", "email", "password"],
+            },
+        }
+    ],
+    "responses": {
+        "201": {
+            "description": "User registered successfully!",
+        },
+        "400": {
+            "description": "Invalid request or user already exists.",
+        },
+    },
+})
+
 def register():
-    """
-    Register a new user.
-    ---
-    parameters:
-      - name: name
-        in: body
-        type: string
-        required: true
-        description: Full name of the user
-      - name: email
-        in: body
-        type: string
-        required: true
-        description: Email address of the user
-      - name: password
-        in: body
-        type: string
-        required: true
-        description: Password for the user account
-      - name: role
-        in: body
-        type: string
-        required: false
-        description: Role of the user ('User' or 'Admin'). Default is 'User'.
-    responses:
-      201:
-        description: User successfully registered
-      400:
-        description: User already exists
-    """
-    data = request.get_json()
-    
+    try:
+        data = request.get_json()
+    except Exception:
+        return jsonify({"message": "Invalid request. JSON data is missing"}), 400
+
     if not data:
         return jsonify({"message": "Invalid request. JSON data is missing"}), 400
-    
+
     name = data.get('name')
     email = data.get('email')
     password = data.get('password')
@@ -64,19 +64,61 @@ def register():
     if not name or not email or not password:
         return jsonify({"message": "Name, email, and password are required"}), 400
 
-    # Use the register_user service to handle registration logic
-    data = {
-    "name": name,
-    "email": email,
-    "password": password,
-    "role": role
-    }
-    response, status_code = register_user(data)
+    if email in users:
+        return jsonify({"message": "User already exists!"}), 400
 
-    
-    return jsonify(response), status_code
+    user = User(name, email, password, role)
+    user.token = str(uuid.uuid4())  # Generate a unique token
+    users[email] = user 
+
+    return jsonify({"message": "User registered successfully!"}), 201
+
 
 @auth_bp.route('/login', methods=['POST'])
+
+@swag_from({
+    "tags": ["Authentication"],
+    "summary": "User Login",
+    "description": "Allows a registered user to log in by providing their email and password. Returns an authentication token upon successful login.",
+    "parameters": [
+        {
+            "name": "body",
+            "in": "body",
+            "required": True,
+            "schema": {
+                "type": "object",
+                "properties": {
+                    "email": {"type": "string"},
+                    "password": {"type": "string"},
+                },
+                "required": ["email", "password"],
+            },
+        }
+    ],
+    "responses": {
+        "200": {
+            "description": "Login successful, returns an authentication token.",
+            "schema": {
+                "type": "object",
+                "properties": {
+                    "message": {"type": "string"},
+                    "auth_token": {"type": "string"},
+                    "role": {"type": "string"},
+                },
+            },
+        },
+        "400": {
+            "description": "Invalid request. Email and password are required.",
+        },
+        "401": {
+            "description": "Invalid email or password.",
+        },
+        "403": {
+            "description": "User already logged in.",
+        },
+    },
+})
+
 def login():
     """
     User login to authenticate and get an auth token.
@@ -100,11 +142,13 @@ def login():
       403:
         description: User already logged in
     """
-    data = request.get_json()
-
-    if not data:
+    try:
+        data = request.get_json()
+        if not data:
+            return jsonify({"message": "Bad Request, JSON data is missing"}), 400
+    except Exception:
         return jsonify({"message": "Bad Request, JSON data is missing"}), 400
-    
+
     email = data.get('email')
     password = data.get('password')
 
@@ -116,32 +160,51 @@ def login():
 
     return jsonify(response), status_code
 
+
 @auth_bp.route('/logout', methods=['POST'])
+
+@swag_from({
+    "tags": ["Authentication"],
+    "summary": "User Logout",
+    "description": "Logs out a user by invalidating their authentication token.",
+    "parameters": [
+        {
+            "name": "Authorization",
+            "in": "header",
+            "required": True,
+            "type": "string",
+            "description": "Bearer <auth_token>",
+        }
+    ],
+    "responses": {
+        "200": {
+            "description": "Logout successful.",
+            "schema": {
+                "type": "object",
+                "properties": {
+                    "message": {"type": "string"},
+                },
+            },
+        },
+        "401": {
+            "description": "Unauthorized. Invalid or missing token.",
+        },
+    },
+})
+
 def logout():
-    """
-    User logout to invalidate the auth token.
-    ---
-    parameters:
-      - name: Authorization
-        in: header
-        type: string
-        required: true
-        description: Bearer token for authentication
-    responses:
-      200:
-        description: User successfully logged out
-      401:
-        description: Unauthorized access (Invalid or missing token)
-    """
-    token = request.headers.get('Authorization')
-
-    if not token:
-        return jsonify({"message": "Authorization token is required"}), 401
-
-    # Call the logout service function
-    response, status_code = logout_user(token)
-
-    return jsonify(response), status_code
+    """Logs the user out by removing their session."""
+    token = request.headers.get('Authorization').split(" ")[1]  # Extract token from 'Bearer <token>'
+    
+    # Check if the token is valid
+    user = validate_token(token)
+    if not user:
+        return jsonify({"message": "Invalid or expired token."}), 401
+    
+    # Remove the token from active_sessions to log the user out
+    active_sessions.pop(user.email, None)
+    
+    return jsonify({"message": "Logout successful"}), 200
 
 @auth_bp.route('/users', methods=['GET'])
 @swag_from({
@@ -180,20 +243,31 @@ def logout():
     }
 })
 
-
 def get_all_users():
     """
     Get all registered users (Admin only).
     """
-    # Get the token from the request header
-    token = request.headers.get('Authorization')
-
-    if not token:
+    # Check if the Authorization header exists
+    auth_header = request.headers.get('Authorization')
+    if not auth_header:
         return jsonify({"message": "Unauthorized. Please log in."}), 401
+    
+    print(f"Authorization Header: {auth_header}")
+    
+    # Check if the Authorization header is properly formatted
+    if not auth_header.startswith("Bearer "):
+        return jsonify({"message": "Invalid Authorization header format."}), 401
+    
+    try:
+        # Extract the token from the header
+        token = auth_header.split(" ")[1]
+    except IndexError:
+        return jsonify({"message": "Authorization token is missing"}), 401
     
     # Call the service function to get the list of users
     result, status_code = get_all_users_service(token)
     
+    # Return the result from the service function
     return jsonify(result), status_code
 
 @auth_bp.route('/users/<string:email>', methods=['DELETE'])

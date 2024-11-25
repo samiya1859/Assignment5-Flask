@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, request
 from services.user_services import get_user_profile,update_user_profile, delete_user_profile
-from .auth_routes import validate_session
+from services.user_services import validate_token
 from flasgger import swag_from  # Make sure to import swag_from for Swagger doc
 
 profile_bp = Blueprint('profile', __name__)
@@ -47,12 +47,13 @@ def view_profile():
     if not token:
         return jsonify({"message": "Authorization token is required"}), 401
 
-    user_email = validate_session(token)
+    user_email = validate_token(token)
     if not user_email:
         return jsonify({"message": "Invalid or expired token"}), 401
 
-    # Fetch the user profile from database or in-memory data
+    
     return jsonify({"user_email": user_email}), 200
+
 
 @profile_bp.route('/profile',methods=['PUT'])
 
