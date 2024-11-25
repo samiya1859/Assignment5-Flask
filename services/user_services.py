@@ -95,6 +95,15 @@ def get_all_users_service(token):
     ]
     return user_list, 200
 
+# services/user_services.py
+
+def get_user_by_email(email):
+    # Assuming users are stored in some dictionary or database
+    user = users.get(email)
+    if user:
+        return user
+    return None
+
 
 # for deleting any user (only Applicable for admin)
 def delete_user_service(email, token):

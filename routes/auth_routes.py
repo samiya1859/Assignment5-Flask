@@ -1,10 +1,23 @@
 from flask import Blueprint, request, jsonify
 from services.user_services import register_user, login_user, logout_user, get_all_users_service, delete_user_service
-from services.session_manager import validate_session
 from flasgger import Swagger, swag_from
 
 
 auth_bp = Blueprint('auth', __name__)
+
+def validate_session(token):
+    # Example function to validate token (you can adjust as per your implementation)
+    if not token:
+        return None
+    
+    # Remove "Bearer " prefix if it exists
+    if token.startswith("Bearer "):
+        token = token[7:]
+
+    # For example, compare the token with a stored token (this could be a session store or database check)
+    if token == "valid_token_example":  # Replace with your actual token check
+        return "user_email@example.com"  # Return user email if token is valid
+    return None
 
 @auth_bp.route('/register', methods=['POST'])
 def register():
