@@ -1,6 +1,6 @@
 from flask import Blueprint, jsonify, request
 from services.user_services import get_user_profile,update_user_profile, delete_user_profile
-from services.user_services import validate_token
+from services.user_services import validate_token, active_sessions, users
 from flasgger import swag_from  # Make sure to import swag_from for Swagger doc
 
 profile_bp = Blueprint('profile', __name__)
@@ -43,16 +43,19 @@ profile_bp = Blueprint('profile', __name__)
     }
 })
 def view_profile():
-    token = request.headers.get('Authorization')
-    if not token:
-        return jsonify({"message": "Authorization token is required"}), 401
-
-    user_email = validate_token(token)
-    if not user_email:
+    token = request.headers.get("Authorization")
+    user = validate_token(token)
+    
+    if not user:
         return jsonify({"message": "Invalid or expired token"}), 401
 
-    
-    return jsonify({"user_email": user_email}), 200
+    # Return full user profile
+    profile_data = {
+        "name": user.name,
+        "email": user.email,
+        "role": user.role
+    }
+    return jsonify(profile_data), 200
 
 
 @profile_bp.route('/profile',methods=['PUT'])
@@ -176,10 +179,17 @@ def update_profile():
     if not token:
         return jsonify({"message": "Authorization token is required"}), 401
     
-    # Validate the token and get the user's email
-    user_email = validate_session(token)  # Assuming validate_token checks token and returns email
-    if not user_email:
+    # Debug print statements
+    print(f"Received token: {token}")
+    print(f"Active sessions: {active_sessions}")
+
+    # Validate the token and get the user
+    user = validate_token(token)
+    if not user:
         return jsonify({"message": "Invalid or expired token"}), 401
+
+    # Get user email from the validated user
+    user_email = user.email
 
     name = data.get('name')
     password = data.get('password')
@@ -187,6 +197,7 @@ def update_profile():
 
     result, status_code = update_user_profile(user_email, name, password, new_password)
     return jsonify(result), status_code
+
 
 @profile_bp.route('/profile',methods=['DELETE'])
 
@@ -261,7 +272,7 @@ def delete_profile():
         return jsonify({"message": "Authorization token is required"}), 401
     
     # Validate the token and get the user's email
-    user_email = validate_session(token)  # Assuming validate_token checks token and returns email
+    user_email = validate_token(token)  # Assuming validate_token checks token and returns email
     if not user_email:
         return jsonify({"message": "Invalid or expired token"}), 401
 

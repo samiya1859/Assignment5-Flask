@@ -252,23 +252,19 @@ def get_all_users():
     if not auth_header:
         return jsonify({"message": "Unauthorized. Please log in."}), 401
     
-    print(f"Authorization Header: {auth_header}")
-    
-    # Check if the Authorization header is properly formatted
-    if not auth_header.startswith("Bearer "):
-        return jsonify({"message": "Invalid Authorization header format."}), 401
+    print(f"Received Authorization Header: {auth_header}")
     
     try:
-        # Extract the token from the header
-        token = auth_header.split(" ")[1]
-    except IndexError:
-        return jsonify({"message": "Authorization token is missing"}), 401
+        # Call the service function to get the list of users
+        result, status_code = get_all_users_service(auth_header)
+        
+        # Return the result from the service function
+        return jsonify(result), status_code
+    except Exception as e:
+        # Add error logging
+        print(f"Error in get_all_users route: {str(e)}")
+        return jsonify({"message": "Internal server error"}), 500
     
-    # Call the service function to get the list of users
-    result, status_code = get_all_users_service(token)
-    
-    # Return the result from the service function
-    return jsonify(result), status_code
 
 @auth_bp.route('/users/<string:email>', methods=['DELETE'])
 

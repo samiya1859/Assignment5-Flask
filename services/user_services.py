@@ -1,25 +1,46 @@
 import uuid
 from models.user import User
 from werkzeug.security import check_password_hash, generate_password_hash
+
 from flask import Flask,jsonify
 
 users = {}
 active_sessions = {}
 
 def validate_token(token):
-    """Validate the provided token and return the user associated with it, if valid."""
+    """Validate the provided token and return the full user object if valid."""
     
-    # Check if the token exists in active_sessions
-    if token in active_sessions:
-        user_info = active_sessions[token]  # Get the user info (email, role)
-        email = user_info["email"]  # Get the email from the stored data
-        
-        # Return the user object based on the email
-        return users.get(email)  # Assuming users is a dictionary where email is the key
     
-    return None  # Return None if no valid user is found
 
+    # Ensure the token has "Bearer " prefix
+    if not token or not token.startswith("Bearer "):
+        print("Invalid token format:", token)
+        return None  # Invalid token format
+    
+    # Extract the actual token
+    actual_token = token.split(" ")[1]
 
+    # Find the token in active_sessions
+    user_session = None
+    for session_token, session_data in active_sessions.items():
+        if session_token == actual_token:
+            user_session = session_data
+            break
+
+    if not user_session:
+        print(f"Token not found: {actual_token}")
+        return None
+
+    # Retrieve the user by email
+    email = user_session.get("email")
+    user = users.get(email)
+    
+    if not user:
+        print(f"User not found for email: {email}")
+        return None
+
+    print(f"Token validated successfully. User: {user.email}, Role: {user.role}")
+    return user
 
 def register_user(data):
     """Register a new user."""
@@ -81,27 +102,35 @@ def get_all_users_service(token):
     """Service to get all users if the authenticated user is an Admin."""
     
     # Validate the token to authenticate the user
-    authenticated_user = validate_token(token)
+    print(f"Validating token in service: {token}")
     
+    authenticated_user = validate_token(token)
     if not authenticated_user:
+        print("Authentication failed for token")
         return {"message": "Invalid or expired token."}, 401
 
+    print(f"Authenticated user: {authenticated_user.email}, Role: {authenticated_user.role}")
+    
     # Check if the authenticated user is an Admin
     if authenticated_user.role != "Admin":
+        print("Forbidden: User is not an Admin.")
         return {"message": "Forbidden. Admin access only."}, 403
-    
+
     # Return the list of all users if the user is an Admin
     user_list = [
         {"name": user.name, "email": user.email, "role": user.role}
         for user in users.values()
     ]
+    print(f"Returning {len(user_list)} users.")
     return {"users": user_list}, 200
 
-# services/user_services.py
 
+print(users)
 def get_user_by_email(email):
     # Assuming users are stored in some dictionary or database
     user = users.get(email)
+    print(users)
+    print(user)
     if user:
         return user
     return None
