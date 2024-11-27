@@ -9,10 +9,10 @@ class Destination:
         self.name = name
         self.description = description
         self.location = location
-        self.admin_email = admin_email 
+        self.admin_email = admin_email
 
     def __repr__(self):
-       return f"Destination({self.name}, {self.description}, {self.location}, {self.admin_email})"
+        return f"Destination({self.name}, {self.description}, {self.location}, {self.admin_email})"
 
     def to_dict(self):
         """
@@ -22,6 +22,6 @@ class Destination:
             "id": str(self.id),  # Convert to string to ensure JSON compatibility
             "name": self.name,
             "description": self.description,
-            "location": self.location
+            "location": self.location,
             # Optionally include other attributes as needed
         }

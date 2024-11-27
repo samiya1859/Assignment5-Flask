@@ -2,21 +2,20 @@ import uuid
 from models.user import User
 from werkzeug.security import check_password_hash, generate_password_hash
 
-from flask import Flask,jsonify
+from flask import Flask, jsonify
 
 users = {}
 active_sessions = {}
 
+
 def validate_token(token):
     """Validate the provided token and return the full user object if valid."""
-    
-    
 
     # Ensure the token has "Bearer " prefix
     if not token or not token.startswith("Bearer "):
         print("Invalid token format:", token)
         return None  # Invalid token format
-    
+
     # Extract the actual token
     actual_token = token.split(" ")[1]
 
@@ -34,7 +33,7 @@ def validate_token(token):
     # Retrieve the user by email
     email = user_session.get("email")
     user = users.get(email)
-    
+
     if not user:
         print(f"User not found for email: {email}")
         return None
@@ -42,12 +41,13 @@ def validate_token(token):
     print(f"Token validated successfully. User: {user.email}, Role: {user.role}")
     return user
 
+
 def register_user(data):
     """Register a new user."""
-    name = data.get('name')
-    email = data.get('email')
-    password = data.get('password')
-    role = data.get('role', 'User')
+    name = data.get("name")
+    email = data.get("email")
+    password = data.get("password")
+    role = data.get("role", "User")
 
     if not name or not email or not password:
         return {"message": "Name, email, and password are required"}, 400
@@ -61,15 +61,17 @@ def register_user(data):
 
     return {"message": "User registered successfully!"}, 201
 
+
 active_sessions = {}
+
 
 def login_user(email, password):
     """Service to handle user login."""
-    
+
     # Check if the email exists in users dictionary
     if email not in users:
         return {"message": "Invalid email or password"}, 401
-    
+
     user = users[email]
 
     # Verify password
@@ -78,14 +80,23 @@ def login_user(email, password):
 
     # Check if the user is already logged in
     if email in active_sessions:
-        return {"message": "User already logged in. Please log out first to login into another account"}, 403
+        return {
+            "message": "User already logged in. Please log out first to login into another account"
+        }, 403
 
     # Generate a new token and store it in active sessions
     token = str(uuid.uuid4())
     # Store only the token in active_sessions (the key is token, value is user data or ID)
-    active_sessions[token] = {"email": user.email, "role": user.role}  # Store user details if needed
+    active_sessions[token] = {
+        "email": user.email,
+        "role": user.role,
+    }  # Store user details if needed
 
-    return {"message": "Login successful", "auth_token": f"Bearer {token}", "role": user.role}, 200
+    return {
+        "message": "Login successful",
+        "auth_token": f"Bearer {token}",
+        "role": user.role,
+    }, 200
 
 
 # logout service
@@ -100,17 +111,19 @@ def logout_user(token):
 # get all user service. Only applicable for admin
 def get_all_users_service(token):
     """Service to get all users if the authenticated user is an Admin."""
-    
+
     # Validate the token to authenticate the user
     print(f"Validating token in service: {token}")
-    
+
     authenticated_user = validate_token(token)
     if not authenticated_user:
         print("Authentication failed for token")
         return {"message": "Invalid or expired token."}, 401
 
-    print(f"Authenticated user: {authenticated_user.email}, Role: {authenticated_user.role}")
-    
+    print(
+        f"Authenticated user: {authenticated_user.email}, Role: {authenticated_user.role}"
+    )
+
     # Check if the authenticated user is an Admin
     if authenticated_user.role != "Admin":
         print("Forbidden: User is not an Admin.")
@@ -126,6 +139,8 @@ def get_all_users_service(token):
 
 
 print(users)
+
+
 def get_user_by_email(email):
     # Assuming users are stored in some dictionary or database
     user = users.get(email)
@@ -139,7 +154,7 @@ def get_user_by_email(email):
 # for deleting any user (only Applicable for admin)
 def delete_user_service(email, token):
     """Service to delete a user (only accessible by logged-in Admin)."""
-    
+
     # Validate token and get user details
     authenticated_user = validate_token(token)
 
@@ -147,7 +162,7 @@ def delete_user_service(email, token):
         return {"message": "Invalid or expired token."}, 401
 
     # Check if the authenticated user is an admin
-    if authenticated_user.role != 'Admin':
+    if authenticated_user.role != "Admin":
         return {"message": "Forbidden. Admin access only."}, 403
 
     # Check if the user exists
@@ -159,7 +174,7 @@ def delete_user_service(email, token):
         return {"message": "Admins cannot delete themselves."}, 400
 
     # Ensure an admin cannot delete another admin
-    if users[email].role == 'Admin':
+    if users[email].role == "Admin":
         return {"message": "Admins cannot delete other admins."}, 400
 
     # Remove the user from the users dictionary
@@ -177,12 +192,9 @@ def get_user_profile(email):
     """Retrieve user profile data."""
     user = users.get(email)
     if user:
-        return {
-            "name": user.name,
-            "email": user.email,
-            "role": user.role
-        }, 200
+        return {"name": user.name, "email": user.email, "role": user.role}, 200
     return {"message": "User not found"}, 404
+
 
 # updating profile
 def update_user_profile(email, name, password, new_password=None):
@@ -190,16 +202,17 @@ def update_user_profile(email, name, password, new_password=None):
     user = users.get(email)
     if not user:
         return {"message": "User not found"}, 404
-    
+
     if password and not check_password_hash(user.password, password):
         return {"message": "Invalid current password"}, 401
-    
+
     # Update profile information
     user.name = name if name else user.name
     if new_password:
         user.password = generate_password_hash(new_password)
 
     return {"message": "Profile updated successfully"}, 200
+
 
 # deleting user data
 def delete_user_profile(email):

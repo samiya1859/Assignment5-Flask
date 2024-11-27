@@ -1,6 +1,7 @@
 from models.user import User
 from .user_services import users, active_sessions
 
+
 def validate_session(email, token):
     """
     Validate if a user's session is active and their token is correct.
